@@ -1,0 +1,52 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Visual Studio files
+.vs/
+*.vscode/
+*.vssscc
+*_i.c
+*_p.c
+*.ncb
+*.sdf
+*.opensdf
+*.cachefile
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+logs/
+*.log
+
+# Environment files
+appsettings.Development.json
+*.env
+*.env.local
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
