@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DAL.Models;
 using DAL;
 using System.Security.Claims;
-using ProjetCsFinal.DTOs;
+
 
 namespace ProjetCsFinal.Controllers
 {
@@ -21,40 +21,23 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GradeDto>>> GetGrades()
+        public async Task<ActionResult<IEnumerable<Grade>>> GetGrades()
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var grades = await _context.Grades
                 .Where(g => g.UserId == userId)
-                .Select(g => new GradeDto
-                {
-                    Id = g.Id,
-                    Value = g.Value,
-                    Comment = g.Comment,
-                    CreatedAt = g.CreatedAt,
-                    ProjectId = g.ProjectId,
-                    UserId = g.UserId
-                })
                 .ToListAsync();
 
             return grades;
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<GradeDto>> GetGrade(int id)
+        public async Task<ActionResult<Grade>> GetGrade(int id)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var grade = await _context.Grades
                 .Where(g => g.Id == id && g.UserId == userId)
-                .Select(g => new GradeDto
-                {
-                    Id = g.Id,
-                    Value = g.Value,
-                    Comment = g.Comment,
-                    CreatedAt = g.CreatedAt,
-                    ProjectId = g.ProjectId,
-                    UserId = g.UserId
-                })
+
                 .FirstOrDefaultAsync();
 
             if (grade == null)
@@ -66,31 +49,21 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<GradeDto>> CreateGrade(GradeDto gradeDto)
+        public async Task<ActionResult<Grade>> CreateGrade(Grade grade)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             
-            var grade = new Grade
-            {
-                Value = gradeDto.Value,
-                Comment = gradeDto.Comment,
-                CreatedAt = DateTime.UtcNow,
-                ProjectId = gradeDto.ProjectId,
-                UserId = userId
-            };
+            grade.UserId = userId;
+            grade.CreatedAt = DateTime.UtcNow;
 
             _context.Grades.Add(grade);
             await _context.SaveChangesAsync();
 
-            gradeDto.Id = grade.Id;
-            gradeDto.CreatedAt = grade.CreatedAt;
-            gradeDto.UserId = userId;
-
-            return CreatedAtAction(nameof(GetGrade), new { id = grade.Id }, gradeDto);
+            return CreatedAtAction(nameof(GetGrade), new { id = grade.Id }, grade);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateGrade(int id, GradeDto gradeDto)
+        public async Task<IActionResult> UpdateGrade(int id, Grade updatedGrade)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var grade = await _context.Grades.FirstOrDefaultAsync(g => g.Id == id && g.UserId == userId);
@@ -100,8 +73,8 @@ namespace ProjetCsFinal.Controllers
                 return NotFound();
             }
 
-            grade.Value = gradeDto.Value;
-            grade.Comment = gradeDto.Comment;
+            grade.Value = updatedGrade.Value;
+            grade.Comment = updatedGrade.Comment;
 
             await _context.SaveChangesAsync();
             return NoContent();

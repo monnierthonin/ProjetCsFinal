@@ -8,10 +8,12 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using BCrypt.Net;
-using ProjetCsFinal.DTOs;
 
 namespace ProjetCsFinal.Controllers
 {
+    /// <summary>
+    /// Gestion des utilisateurs et de l'authentification
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
@@ -26,42 +28,65 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto registerDto)
+        /// <summary>
+        /// Enregistre un nouvel utilisateur
+        /// </summary>
+        /// <param name="user">Les informations de l'utilisateur à créer</param>
+        /// <returns>Le token JWT et les informations de l'utilisateur créé</returns>
+        /// <response code="200">Utilisateur créé avec succès</response>
+        /// <response code="400">Le nom d'utilisateur existe déjà</response>
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<object>> Register(User user)
         {
-            if (await _context.Users.AnyAsync(u => u.Username == registerDto.Username))
+            if (await _context.Users.AnyAsync(u => u.Username == user.Username))
             {
-                return BadRequest(new AuthResponseDto { Success = false, Message = "Username already exists" });
+                return BadRequest(new { Success = false, Message = "Username already exists" });
             }
 
-            var user = new User
-            {
-                Username = registerDto.Username,
-                FirstName = registerDto.FirstName,
-                LastName = registerDto.LastName,
-                Email = registerDto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-                Role = UserRole.User
-            };
-
+            // Hash du mot de passe et définition du rôle
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+            user.Role = UserRole.User;
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
             var token = GenerateJwtToken(user);
-            return Ok(new AuthResponseDto { Success = true, Token = token });
+            return Ok(new
+            {
+                Success = true,
+                Token = token,
+                Message = "Registration successful",
+                UserId = user.Id
+            });
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<AuthResponseDto>> Login(LoginDto loginDto)
+        /// <summary>
+        /// Authentifie un utilisateur
+        /// </summary>
+        /// <param name="username">Nom d'utilisateur</param>
+        /// <param name="password">Mot de passe</param>
+        /// <returns>Le token JWT et les informations de l'utilisateur</returns>
+        /// <response code="200">Authentification réussie</response>
+        /// <response code="401">Identifiants invalides</response>
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<object>> Login(string username, string password)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == loginDto.Username);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
+            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                return Unauthorized(new AuthResponseDto { Success = false, Message = "Invalid username or password" });
+                return Unauthorized(new { Success = false, Message = "Invalid username or password" });
             }
 
             var token = GenerateJwtToken(user);
-            return Ok(new AuthResponseDto { Success = true, Token = token });
+            return Ok(new
+            {
+                Success = true,
+                Token = token,
+                Message = "Login successful"
+            });
         }
 
         private string GenerateJwtToken(User user)

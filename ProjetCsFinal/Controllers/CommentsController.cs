@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DAL.Models;
 using DAL;
 using System.Security.Claims;
-using ProjetCsFinal.DTOs;
+
 
 namespace ProjetCsFinal.Controllers
 {
@@ -21,38 +21,22 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CommentDto>>> GetComments()
+        public async Task<ActionResult<IEnumerable<Comment>>> GetComments()
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var comments = await _context.Comments
                 .Where(c => c.UserId == userId)
-                .Select(c => new CommentDto
-                {
-                    Id = c.Id,
-                    Content = c.Content,
-                    CreatedAt = c.CreatedAt,
-                    TaskId = c.TaskId,
-                    UserId = c.UserId
-                })
                 .ToListAsync();
 
             return comments;
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<CommentDto>> GetComment(int id)
+        public async Task<ActionResult<Comment>> GetComment(int id)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var comment = await _context.Comments
                 .Where(c => c.Id == id && c.UserId == userId)
-                .Select(c => new CommentDto
-                {
-                    Id = c.Id,
-                    Content = c.Content,
-                    CreatedAt = c.CreatedAt,
-                    TaskId = c.TaskId,
-                    UserId = c.UserId
-                })
                 .FirstOrDefaultAsync();
 
             if (comment == null)
@@ -64,30 +48,21 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<CommentDto>> CreateComment(CommentDto commentDto)
+        public async Task<ActionResult<Comment>> CreateComment(Comment comment)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             
-            var comment = new Comment
-            {
-                Content = commentDto.Content,
-                CreatedAt = DateTime.UtcNow,
-                TaskId = commentDto.TaskId,
-                UserId = userId
-            };
+            comment.CreatedAt = DateTime.UtcNow;
+            comment.UserId = userId;
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            commentDto.Id = comment.Id;
-            commentDto.CreatedAt = comment.CreatedAt;
-            commentDto.UserId = userId;
-
-            return CreatedAtAction(nameof(GetComment), new { id = comment.Id }, commentDto);
+            return CreatedAtAction(nameof(GetComment), new { id = comment.Id }, comment);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateComment(int id, CommentDto commentDto)
+        public async Task<IActionResult> UpdateComment(int id, Comment updatedComment)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
             var comment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
@@ -97,7 +72,7 @@ namespace ProjetCsFinal.Controllers
                 return NotFound();
             }
 
-            comment.Content = commentDto.Content;
+            comment.Content = updatedComment.Content;
 
             await _context.SaveChangesAsync();
             return NoContent();

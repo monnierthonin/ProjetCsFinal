@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using DAL;
+using ProjetCsFinal.Extensions;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,12 +14,30 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "School Project API", Version = "v1" });
-    
-    // Configuration de la sécurité Swagger
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "TaskFlow API",
+        Version = "v1",
+        Description = "API de gestion de projets et tâches pour TaskFlow",
+        Contact = new OpenApiContact
+        {
+            Name = "TaskFlow Team",
+            Email = "support@taskflow.com"
+        }
+    });
+
+    // Inclure les commentaires XML pour la documentation
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    // Configuration de l'authentification JWT dans Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'\n\n",
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -74,6 +94,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Middleware de gestion d'erreurs personnalisé
+app.UseErrorHandling();
 
 app.UseAuthentication();
 app.UseAuthorization();
