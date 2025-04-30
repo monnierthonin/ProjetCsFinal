@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DAL.Models
@@ -19,6 +20,7 @@ namespace DAL.Models
         /// </summary>
         /// <example>1</example>
         [Key]
+        [JsonIgnore]
         public int Id { get; set; }
 
         /// <summary>
@@ -40,6 +42,7 @@ namespace DAL.Models
         /// Date de création du projet (auto-générée)
         /// </summary>
         [Required]
+        [JsonIgnore]
         public DateTime CreationDate { get; set; } = DateTime.UtcNow;
 
         /// <summary>
@@ -57,6 +60,7 @@ namespace DAL.Models
         /// Permet d'accéder aux informations de l'utilisateur propriétaire
         /// </remarks>
         [ForeignKey("UserId")]
+        [JsonIgnore]
         public virtual User User { get; set; } = null!;
 
         /// <summary>
@@ -66,6 +70,7 @@ namespace DAL.Models
         /// Navigation property pour Entity Framework
         /// Permet d'accéder à toutes les tâches du projet
         /// </remarks>
+        [JsonIgnore]
         public virtual ICollection<ProjectTask> Tasks { get; set; } = new List<ProjectTask>();
     }
 }

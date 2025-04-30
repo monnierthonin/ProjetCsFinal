@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DAL.Models;
 using DAL;
 using System.Security.Claims;
+using ProjetCsFinal.Extensions;
 
 
 namespace ProjetCsFinal.Controllers
@@ -35,11 +36,15 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            return await _context.Projects
-                .Where(p => p.UserId == userId)
-                .Include(p => p.Tasks)
-                .ToListAsync();
+            var userId = User.GetUserId();
+            var query = _context.Projects.AsQueryable();
+            
+            if (!User.IsAdmin())
+            {
+                query = query.Where(p => p.UserId == userId);
+            }
+
+            return await query.Include(p => p.Tasks).ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -56,10 +61,10 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var userId = User.GetUserId();
             var project = await _context.Projects
                 .Include(p => p.Tasks)
-                .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+                .FirstOrDefaultAsync(p => p.Id == id && (User.IsAdmin() || p.UserId == userId));
 
             if (project == null)
             {

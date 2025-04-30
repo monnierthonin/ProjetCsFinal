@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DAL.Models;
 using DAL;
 using System.Security.Claims;
+using ProjetCsFinal.Extensions;
 
 
 namespace ProjetCsFinal.Controllers
@@ -35,12 +36,20 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTasks()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            var tasks = await _context.Tasks
-                .Include(t => t.Comments)
-                .Where(t => t.Project.UserId == userId)
-                .ToListAsync();
-            return tasks;
+            var userId = User.GetUserId();
+            var query = _context.Tasks.AsQueryable();
+            
+            if (!User.IsAdmin())
+            {
+                query = query.Include(t => t.Project)
+                          .Where(t => t.Project.UserId == userId);
+            }
+            else
+            {
+                query = query.Include(t => t.Project);
+            }
+
+            return await query.ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -57,11 +66,10 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> GetTask(int id)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .Include(t => t.Comments)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
 
             if (task == null)
             {
@@ -83,8 +91,7 @@ namespace ProjetCsFinal.Controllers
         ///     POST /api/tasks
         ///     {
         ///         "title": "Ma Tâche",
-        ///         "description": "Description de la tâche",
-        ///         "status": "ToDo",
+                ///         "status": "ToDo",
         ///         "projectId": 1,
         ///         "dueDate": "2024-12-31T23:59:59Z"
         ///     }
@@ -100,8 +107,8 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId && p.UserId == userId);
+            var userId = User.GetUserId();
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId && (User.IsAdmin() || p.UserId == userId));
 
             if (project == null)
             {
@@ -133,10 +140,10 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateTask(int id, ProjectTask updatedTask)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
 
             if (task == null)
             {
@@ -144,8 +151,7 @@ namespace ProjetCsFinal.Controllers
             }
 
             task.Title = updatedTask.Title;
-            task.Description = updatedTask.Description;
-            task.Status = updatedTask.Status;
+                    task.Status = updatedTask.Status;
             task.DueDate = updatedTask.DueDate;
 
             await _context.SaveChangesAsync();
@@ -166,10 +172,10 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteTask(int id)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
 
             if (task == null)
             {
@@ -194,39 +200,25 @@ namespace ProjetCsFinal.Controllers
         ///     POST /api/tasks/{id}/comments
         ///     {
         ///         "content": "Mon commentaire sur la tâche"
-        ///     }
-        /// 
-        /// </remarks>
-        /// <response code="201">Retourne le commentaire créé</response>
-        /// <response code="404">La tâche n'existe pas ou n'appartient pas à l'utilisateur</response>
-        /// <response code="400">Les données du commentaire sont invalides</response>
-        /// <response code="401">L'utilisateur n'est pas authentifié</response>
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<Comment>> AddComment(int id, Comment comment)
+        public async Task<ActionResult<ProjectTask>> AddComment(int id, [FromBody] string commentaire)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
 
             if (task == null)
             {
                 return NotFound();
             }
 
-            comment.CreatedAt = DateTime.UtcNow;
-            comment.TaskId = id;
-            comment.UserId = userId;
-
-            _context.Comments.Add(comment);
+            task.Commentaire.Add(commentaire);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(CommentsController.GetComment), 
-                                 new { controller = "Comments", id = comment.Id }, 
-                                 comment);
+            return Ok(task);
         }
     }
 }
