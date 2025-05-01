@@ -1,105 +1,146 @@
-Contexte
-L'entreprise TaskFlow est une startup spécialisée dans la gestion de tâches et de projets en ligne. Elle souhaite proposer une API REST permettant à des clients (applications web, mobiles ou autres) d'interagir avec son système de gestion de tâches.
+# TaskFlow API
 
-TaskFlow a fait appel à vous en tant que prestataire pour développer la première version de son backend.
+## Description
+TaskFlow est une API REST développée en ASP.NET Core pour la gestion de projets et de tâches. Elle permet aux utilisateurs de créer des projets, d'ajouter des tâches et de suivre leur progression.
 
-Votre mission est de concevoir et implémenter cette API en utilisant ce que vous avez appris pendant ce cours.
+## Technologies Utilisées
+- ASP.NET Core
+- Entity Framework Core avec SQLite
+- JWT pour l'authentification
+- BCrypt pour le hachage des mots de passe
+- Swagger pour la documentation API
 
-Vous pouvez constituez des groupes de deux personnes maximum.
+## Structure du Projet
 
+### Modèles de Données
+1. **User**
+   - Id (int, clé primaire)
+   - Name (string, obligatoire)
+   - Email (string, obligatoire, unique)
+   - PasswordHash (string, obligatoire)
+   - Role (enum: User/Admin)
+   - Projects (Collection)
 
-Objectifs du Projet
-Le projet consiste à développer une API REST complète permettant de gérer des projets et des tâches, tout en respectant les bonnes pratiques de développement en C#.
+2. **Project**
+   - Id (int, clé primaire)
+   - Name (string, obligatoire)
+   - Description (string, optionnel)
+   - CreationDate (DateTime, auto-généré)
+   - UserId (int, clé étrangère)
+   - Tasks (Collection)
 
+3. **Task**
+   - Id (int, clé primaire)
+   - Title (string, obligatoire)
+   - Description (string)
+   - Status (string: ToDo, InProgress, Done)
+   - DueDate (DateTime)
+   - ProjectId (int, clé étrangère)
+   - Comments (Collection de strings)
 
-L'API devra proposer les fonctionnalités suivantes :
+## Authentification et Autorisation
 
-1. Modélisation des Entités
-(Utilisation d'EntityFramework / SGBD SQL Server obligatoire)
+### Endpoints Publics
+Seuls deux endpoints sont accessibles sans authentification :
 
-Une entité User pour gérer l'authentification / autorisations :
+1. **Inscription** : `POST /api/users/register`
+```json
+{
+  "name": "user",
+  "email": "user@example.com",
+  "passwordHash": "password123"
+}
+```
 
-Id (int, clé primaire)
+2. **Connexion** : `POST /api/users/login?username=user&password=password123`
 
-Name (string, obligatoire)
+### Utilisation du Token JWT
+Pour toutes les autres routes, le token JWT doit être inclus dans le header Authorization avec le préfixe "Bearer" :
+```
+Authorization: Bearer votre_token_jwt
+```
 
-Email (string, obligatoire, unique)
+## Points d'API Sécurisés
 
-PasswordHash (string, obligatoire)
+### Projets
+Tous ces endpoints nécessitent une authentification JWT.
 
-Role (enum : Admin, User)
+- `GET /api/projects` : Liste tous les projets de l'utilisateur
+- `GET /api/projects/{id}` : Récupère un projet spécifique
+- `POST /api/projects` : Crée un nouveau projet
+```json
+{
+  "name": "Mon Projet",
+  "description": "Description du projet"
+}
+```
+- `PUT /api/projects/{id}` : Met à jour un projet existant
+- `DELETE /api/projects/{id}` : Supprime un projet
 
-Projects (collection des projets appartenant à l'utilisateur)
+### Tâches
+Tous ces endpoints nécessitent une authentification JWT.
 
-Une entité Project avec les propriétés suivantes :
+- `GET /api/tasks` : Liste toutes les tâches
+- `GET /api/tasks/{id}` : Récupère une tâche spécifique
+- `POST /api/tasks` : Crée une nouvelle tâche
+```json
+{
+  "title": "Ma Tâche",
+  "description": "Description de la tâche",
+  "status": "ToDo",
+  "projectId": 1,
+  "dueDate": "2024-12-31T23:59:59Z"
+}
+```
+- `PUT /api/tasks/{id}` : Met à jour une tâche existante
+- `DELETE /api/tasks/{id}` : Supprime une tâche
+- `POST /api/tasks/{id}/comments` : Ajoute un commentaire
 
-Id (int, clé primaire)
+## Sécurité Actuelle
 
-Name (string, obligatoire)
+1. **Authentification**
+   - Basée sur JWT avec une durée de validité de 24h
+   - Hachage des mots de passe avec BCrypt
+   - Validation des tokens sur chaque requête
 
-Description (string, optionnel)
+2. **Autorisations**
+   - Système de rôles (User/Admin)
+   - Protection de toutes les routes avec [Authorize]
+   - Vérification du propriétaire pour les projets
 
-CreationDate (DateTime, auto-généré)
+## Améliorations Possibles
 
-User (clé étrangère vers l'Utilisateur propriétaire)
+1. **Sécurité**
+   - Ajouter un système de refresh tokens
+   - Mettre en place une liste noire de tokens révoqués
+   - Renforcer la politique de mots de passe
+   - Ajouter la validation des adresses email
+   - Implémenter la limitation de taux (rate limiting)
 
-Tasks (collection de tâches associées)
+2. **Autorisations**
+   - Ajouter des permissions par projet (lecture/écriture)
+   - Permettre le partage de projets entre utilisateurs
+   - Créer des rôles personnalisés
+   - Ajouter des quotas (nombre max de projets/tâches)
 
-Une entité Task avec :
+## Installation et Configuration
 
-Id (int, clé primaire)
+1. Cloner le repository
+2. Restaurer les packages :
+```bash
+dotnet restore
+```
+3. Configurer la base de données dans appsettings.json
+4. Lancer l'application :
+```bash
+dotnet run
+```
+5. Accéder à Swagger UI : `https://localhost:5001/swagger`
 
-Title (string, obligatoire)
+## Notes Importantes
 
-Status (enum : À faire, En cours, Terminé)
-
-Project (clé étrangère vers Projet)
-
-DueDate (DateTime, optionnel)
-
-Commentaire (collection de strings pour suivre les notes)
-
-Il vous sera demandé comment la base a été générée à l'aide d'EF. Il faudra donc soutenir votre solution.
-
-
-2. API REST
-Création de contrôleurs REST pour gérer les Users, Projects et Tasks.
-Mise en place de l'authentification avec JWT pour restreindre l'accès à certains endpoints.
-
-Implémentation des endpoints suivants pour les utilisateurs non authentifiés :
-
-POST /api/users/register : Inscription d'un utilisateur.
-
-POST /api/users/login : Connexion et obtention d'un token JWT.
-
-Implémentation des endpoints suivants pour les utilisateurs authentifiés :
-
-GET /api/projects : Liste tous les projets.
-
-POST /api/projects : Ajoute un projet.
-
-GET /api/projects/{id} : Récupère un projet par son ID.
-
-PUT /api/projects/{id} : Met à jour un projet existant.
-
-DELETE /api/projets/{id} : Supprime un projet (uniquement pour le propriétaire).
-
-GET /api/tasks : Liste toutes les tâches.
-
-POST /api/tasks : Ajoute une tâche à un projet.
-
-GET /api/tasks/{id} : Récupère une tâche par son ID.
-
-PUT /api/tasks/{id} : Met à jour une tâche existante.
-
-DELETE /api/tasks/{id} : Supprime une tâche.
-
-
-3. Gestion des Erreurs
-Il vous faudra mettre en place un middleware pour la gestion des exceptions et utiliser sur tous les endpoints des codes retours HTTP que vous jugerez utiles (qu'il faudra justifier).
-
-
-4. Documentation Swagger
-Vous mettrez en place tout ce que vous avez pu apprendre dans le cours pour mettre en place la documentation Swagger.
-
-La notation se fera en fonction de ce qui sera implémenté et ce qui manquera.
+- Les tokens JWT doivent toujours être préfixés par "Bearer " dans le header
+- Toutes les dates sont en UTC
+- La base de données SQLite est créée automatiquement au démarrage
+- Les mots de passe sont hachés avant stockage
+- Les ID sont auto-générés, ne pas les inclure dans les requêtes POST

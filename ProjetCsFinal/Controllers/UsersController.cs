@@ -17,6 +17,7 @@ namespace ProjetCsFinal.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         [HttpGet]
@@ -116,6 +117,7 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         /// <summary>
         /// Enregistre un nouvel utilisateur
         /// </summary>
@@ -161,6 +163,7 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         /// <summary>
         /// Authentifie un utilisateur
         /// </summary>

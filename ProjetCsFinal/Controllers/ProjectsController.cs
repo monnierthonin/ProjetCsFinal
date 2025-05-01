@@ -15,6 +15,7 @@ namespace ProjetCsFinal.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class ProjectsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
