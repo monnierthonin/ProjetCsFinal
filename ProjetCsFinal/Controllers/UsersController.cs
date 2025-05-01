@@ -20,29 +20,18 @@ namespace ProjetCsFinal.Controllers
     public class UsersController : ControllerBase
     {
         [HttpGet]
-        [Authorize]
         /// <summary>
-        /// Récupère la liste des utilisateurs (admin uniquement)
+        /// Récupère la liste des utilisateurs
         /// </summary>
         /// <returns>Liste des utilisateurs</returns>
         /// <response code="200">Retourne la liste des utilisateurs</response>
-        /// <response code="401">Non authentifié</response>
-        /// <response code="403">Non autorisé (réservé aux admins)</response>
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            if (!User.IsAdmin())
-            {
-                return Forbid();
-            }
-
             return await _context.Users.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        [Authorize]
         /// <summary>
         /// Récupère un utilisateur spécifique
         /// </summary>
@@ -50,18 +39,10 @@ namespace ProjetCsFinal.Controllers
         /// <returns>L'utilisateur demandé</returns>
         /// <response code="200">Retourne l'utilisateur demandé</response>
         /// <response code="404">Utilisateur non trouvé</response>
-        /// <response code="403">Non autorisé</response>
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<User>> GetUser(int id)
         {
-            var currentUserId = User.GetUserId();
-            if (!User.IsAdmin() && currentUserId != id)
-            {
-                return Forbid();
-            }
-
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
@@ -72,7 +53,6 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
         /// <summary>
         /// Met à jour un utilisateur
         /// </summary>
@@ -81,28 +61,14 @@ namespace ProjetCsFinal.Controllers
         /// <returns>Aucun contenu en cas de succès</returns>
         /// <response code="204">Mise à jour réussie</response>
         /// <response code="404">Utilisateur non trouvé</response>
-        /// <response code="403">Non autorisé</response>
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> UpdateUser(int id, User updatedUser)
         {
-            var currentUserId = User.GetUserId();
-            if (!User.IsAdmin() && currentUserId != id)
-            {
-                return Forbid();
-            }
-
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
                 return NotFound();
-            }
-
-            // Un utilisateur normal ne peut pas changer son rôle
-            if (!User.IsAdmin())
-            {
-                updatedUser.Role = user.Role;
             }
 
             user.Name = updatedUser.Name;
@@ -118,7 +84,6 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
         /// <summary>
         /// Supprime un utilisateur
         /// </summary>
@@ -126,18 +91,10 @@ namespace ProjetCsFinal.Controllers
         /// <returns>Aucun contenu en cas de succès</returns>
         /// <response code="204">Suppression réussie</response>
         /// <response code="404">Utilisateur non trouvé</response>
-        /// <response code="403">Non autorisé</response>
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var currentUserId = User.GetUserId();
-            if (!User.IsAdmin() && currentUserId != id)
-            {
-                return Forbid();
-            }
-
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
@@ -214,7 +171,7 @@ namespace ProjetCsFinal.Controllers
         /// <response code="401">Identifiants invalides</response>
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<object>> Login(string username, string password)
+        public async Task<ActionResult<object>> Login([FromQuery] string username, [FromQuery] string password)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Name == username);
 

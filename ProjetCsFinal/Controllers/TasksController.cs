@@ -12,7 +12,6 @@ namespace ProjetCsFinal.Controllers
     /// <summary>
     /// Gestion des tâches des projets
     /// </summary>
-    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
@@ -36,20 +35,7 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTasks()
         {
-            var userId = User.GetUserId();
-            var query = _context.Tasks.AsQueryable();
-            
-            if (!User.IsAdmin())
-            {
-                query = query.Include(t => t.Project)
-                          .Where(t => t.Project.UserId == userId);
-            }
-            else
-            {
-                query = query.Include(t => t.Project);
-            }
-
-            return await query.ToListAsync();
+            return await _context.Tasks.Include(t => t.Project).ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -66,10 +52,9 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> GetTask(int id)
         {
-            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {
@@ -107,12 +92,11 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
         {
-            var userId = User.GetUserId();
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId && (User.IsAdmin() || p.UserId == userId));
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId);
 
             if (project == null)
             {
-                return NotFound("Project not found or access denied");
+                return NotFound("Project not found");
             }
 
             task.DueDate = task.DueDate != default ? task.DueDate : DateTime.UtcNow.AddDays(7); // Date d'échéance par défaut à 7 jours
@@ -140,10 +124,9 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateTask(int id, ProjectTask updatedTask)
         {
-            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {
@@ -172,10 +155,9 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteTask(int id)
         {
-            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {
@@ -205,10 +187,9 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<ProjectTask>> AddComment(int id, [FromBody] string commentaire)
         {
-            var userId = User.GetUserId();
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && (User.IsAdmin() || t.Project.UserId == userId));
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {

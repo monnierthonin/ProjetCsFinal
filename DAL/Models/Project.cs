@@ -49,6 +49,7 @@ namespace DAL.Models
         /// Identifiant de l'utilisateur propriétaire
         /// </summary>
         /// <example>1</example>
+        [JsonIgnore]
         [Required(ErrorMessage = "L'identifiant de l'utilisateur est requis")]
         public int UserId { get; set; }
 
@@ -61,7 +62,7 @@ namespace DAL.Models
         /// </remarks>
         [ForeignKey("UserId")]
         [JsonIgnore]
-        public virtual User User { get; set; } = null!;
+        public virtual User? User { get; set; }
 
         /// <summary>
         /// Collection des tâches associées au projet

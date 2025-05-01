@@ -12,7 +12,6 @@ namespace ProjetCsFinal.Controllers
     /// <summary>
     /// Gestion des projets
     /// </summary>
-    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
@@ -36,15 +35,7 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            var userId = User.GetUserId();
-            var query = _context.Projects.AsQueryable();
-            
-            if (!User.IsAdmin())
-            {
-                query = query.Where(p => p.UserId == userId);
-            }
-
-            return await query.Include(p => p.Tasks).ToListAsync();
+            return await _context.Projects.Include(p => p.Tasks).ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -61,10 +52,9 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var userId = User.GetUserId();
             var project = await _context.Projects
                 .Include(p => p.Tasks)
-                .FirstOrDefaultAsync(p => p.Id == id && (User.IsAdmin() || p.UserId == userId));
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
             {
@@ -75,8 +65,9 @@ namespace ProjetCsFinal.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         /// <summary>
-        /// Crée un nouveau projet
+        /// Crée un nouveau projet pour l'utilisateur connecté
         /// </summary>
         /// <param name="project">Les informations du projet à créer</param>
         /// <returns>Le projet créé</returns>
@@ -98,8 +89,8 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<Project>> CreateProject(Project project)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            
+            // Récupérer le userId du token JWT
+            var userId = User.GetUserId();
             project.UserId = userId;
             project.CreationDate = DateTime.UtcNow;
 
@@ -126,8 +117,7 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateProject(int id, Project updatedProject)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
             {
@@ -155,8 +145,7 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
             {
