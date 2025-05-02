@@ -20,7 +20,6 @@ namespace DAL.Models
         /// </summary>
         /// <example>1</example>
         [Key]
-        [JsonIgnore]
         public int Id { get; set; }
 
         /// <summary>

@@ -57,7 +57,7 @@ namespace DAL.Models
         /// </remarks>
         [ForeignKey("ProjectId")]
         [JsonIgnore]
-        public virtual Project Project { get; set; } = null!;
+        public virtual Project? Project { get; set; }
 
         /// <summary>
         /// Date d'échéance de la tâche (UTC, optionnel)
@@ -71,7 +71,6 @@ namespace DAL.Models
         /// <remarks>
         /// Stocke l'historique des notes sous forme de strings
         /// </remarks>
-        [JsonIgnore]
         public List<string> Commentaire { get; set; } = new List<string>();
     }
 
@@ -81,10 +80,10 @@ namespace DAL.Models
     public enum Status
     {
         [Display(Name = "À faire")]
-        ÀFaire,
+        ToDo = 0,
         [Display(Name = "En cours")]
-        EnCours,
+        InProgress = 1,
         [Display(Name = "Terminé")]
-        Terminé
+        Done = 2
     }
 }

@@ -29,7 +29,18 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
+
+            // Les admins voient tous les utilisateurs, les autres ne voient que leur profil
+            if (currentUser?.Role == Role.Admin)
+            {
+                return await _context.Users.ToListAsync();
+            }
+            
+            return await _context.Users
+                .Where(u => u.Id == userId)
+                .ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -44,13 +55,27 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<User>> GetUser(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            var currentUserId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(currentUserId);
+            var requestedUser = await _context.Users.FindAsync(id);
+
+            // Si l'utilisateur n'existe pas
+            if (requestedUser == null)
             {
                 return NotFound();
             }
 
-            return user;
+            // Si ce n'est pas un admin et ce n'est pas son profil, on cache les informations sensibles
+            if (currentUser?.Role != Role.Admin && currentUserId != id)
+            {
+                return Ok(new {
+                    requestedUser.Id,
+                    requestedUser.Name,
+                    requestedUser.Role
+                });
+            }
+
+            return requestedUser;
         }
 
         [HttpPut("{id}")]
@@ -66,19 +91,33 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateUser(int id, User updatedUser)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            var currentUserId = User.GetUserId();
+            var userToUpdate = await _context.Users.FindAsync(id);
+
+            if (userToUpdate == null)
             {
                 return NotFound();
             }
 
-            user.Name = updatedUser.Name;
-            user.Email = updatedUser.Email;
+            // Vérifier si l'utilisateur modifie ses propres informations ou est admin
+            var currentUser = await _context.Users.FindAsync(currentUserId);
+            if (currentUserId != id && currentUser?.Role != Role.Admin)
+            {
+                return Forbid();
+            }
+
+            userToUpdate.Name = updatedUser.Name;
+            userToUpdate.Email = updatedUser.Email;
             if (!string.IsNullOrEmpty(updatedUser.PasswordHash))
             {
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
+                userToUpdate.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
             }
-            user.Role = updatedUser.Role;
+
+            // Seul un admin peut changer le rôle
+            if (currentUser?.Role == Role.Admin)
+            {
+                userToUpdate.Role = updatedUser.Role;
+            }
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -96,13 +135,22 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            var currentUserId = User.GetUserId();
+            var userToDelete = await _context.Users.FindAsync(id);
+
+            if (userToDelete == null)
             {
                 return NotFound();
             }
 
-            _context.Users.Remove(user);
+            // Vérifier si l'utilisateur supprime son propre compte ou est admin
+            var currentUser = await _context.Users.FindAsync(currentUserId);
+            if (currentUserId != id && currentUser?.Role != Role.Admin)
+            {
+                return Forbid();
+            }
+
+            _context.Users.Remove(userToDelete);
             await _context.SaveChangesAsync();
             return NoContent();
         }

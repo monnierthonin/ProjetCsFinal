@@ -36,7 +36,23 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            return await _context.Projects.Include(p => p.Tasks).ToListAsync();
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
+
+            // Les admins voient tous les projets avec leurs propriétaires
+            if (currentUser?.Role == Role.Admin)
+            {
+                return await _context.Projects
+                    .Include(p => p.Tasks)
+                    .Include(p => p.User)
+                    .ToListAsync();
+            }
+
+            // Les utilisateurs normaux ne voient que leurs projets
+            return await _context.Projects
+                .Include(p => p.Tasks)
+                .Where(p => p.UserId == userId)
+                .ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -53,13 +69,34 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
             var project = await _context.Projects
                 .Include(p => p.Tasks)
+                .Include(p => p.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
             {
-                return NotFound();
+                return NotFound("Project not found");
+            }
+
+            // Les admins voient tout le détail
+            if (currentUser?.Role == Role.Admin)
+            {
+                return project;
+            }
+
+            // Les autres utilisateurs voient les détails de base si ce n'est pas leur projet
+            if (project.UserId != userId)
+            {
+                return Ok(new {
+                    project.Id,
+                    project.Name,
+                    project.Description,
+                    project.CreationDate,
+                    Owner = new { project.User.Id, project.User.Name }
+                });
             }
 
             return project;
@@ -118,11 +155,12 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateProject(int id, Project updatedProject)
         {
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+            var userId = User.GetUserId();
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
             if (project == null)
             {
-                return NotFound();
+                return NotFound("Project not found or access denied");
             }
 
             project.Name = updatedProject.Name;
@@ -146,11 +184,12 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+            var userId = User.GetUserId();
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
             if (project == null)
             {
-                return NotFound();
+                return NotFound("Project not found or access denied");
             }
 
             _context.Projects.Remove(project);
