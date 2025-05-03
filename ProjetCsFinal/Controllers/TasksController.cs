@@ -36,7 +36,28 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTasks()
         {
-            return await _context.Tasks.Include(t => t.Project).ToListAsync();
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
+            var query = _context.Tasks
+                .Include(t => t.Project)
+                .ThenInclude(p => p.User)
+                .AsQueryable();
+
+            // Les utilisateurs normaux ne voient que les tâches de leurs projets
+            if (currentUser?.Role != Role.Admin)
+            {
+                query = query.Where(t => t.Project.UserId == userId);
+            }
+
+            var tasks = await query.ToListAsync();
+
+            // Si l'utilisateur n'est pas admin, on vérifie qu'il a accès à au moins une tâche
+            if (currentUser?.Role != Role.Admin && !tasks.Any())
+            {
+                return NotFound("No tasks found");
+            }
+
+            return tasks;
         }
 
         [HttpGet("{id}")]
@@ -53,13 +74,24 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> GetTask(int id)
         {
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
             var task = await _context.Tasks
                 .Include(t => t.Project)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {
-                return NotFound();
+                return NotFound("Task not found");
+            }
+
+            // Les utilisateurs normaux ne peuvent voir que les tâches de leurs projets
+            if (currentUser?.Role != Role.Admin)
+            {
+                if (task.Project.UserId != userId)
+                {
+                    return NotFound("Task not found or access denied");
+                }
             }
 
             return task;
@@ -93,11 +125,22 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
         {
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
             var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == task.ProjectId);
 
             if (project == null)
             {
                 return NotFound("Project not found");
+            }
+
+            // Les utilisateurs normaux ne peuvent créer des tâches que dans leurs projets
+            if (currentUser?.Role != Role.Admin)
+            {
+                if (project.UserId != userId)
+                {
+                    return NotFound("Project not found or access denied");
+                }
             }
 
             task.DueDate = task.DueDate != default ? task.DueDate : DateTime.UtcNow.AddDays(7); // Date d'échéance par défaut à 7 jours
@@ -156,13 +199,24 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteTask(int id)
         {
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
             var task = await _context.Tasks
                 .Include(t => t.Project)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
             {
-                return NotFound();
+                return NotFound("Task not found");
+            }
+
+            // Les utilisateurs normaux ne peuvent supprimer que les tâches de leurs projets
+            if (currentUser?.Role != Role.Admin)
+            {
+                if (task.Project.UserId != userId)
+                {
+                    return NotFound("Task not found or access denied");
+                }
             }
 
             _context.Tasks.Remove(task);

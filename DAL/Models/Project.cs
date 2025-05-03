@@ -48,7 +48,6 @@ namespace DAL.Models
         /// Identifiant de l'utilisateur propriétaire
         /// </summary>
         /// <example>1</example>
-        [JsonIgnore]
         [Required(ErrorMessage = "L'identifiant de l'utilisateur est requis")]
         public int UserId { get; set; }
 
@@ -70,7 +69,6 @@ namespace DAL.Models
         /// Navigation property pour Entity Framework
         /// Permet d'accéder à toutes les tâches du projet
         /// </remarks>
-        [JsonIgnore]
         public virtual ICollection<ProjectTask> Tasks { get; set; } = new List<ProjectTask>();
     }
 }

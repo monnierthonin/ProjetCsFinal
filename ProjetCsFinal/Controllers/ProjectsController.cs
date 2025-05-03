@@ -38,21 +38,23 @@ namespace ProjetCsFinal.Controllers
         {
             var userId = User.GetUserId();
             var currentUser = await _context.Users.FindAsync(userId);
-
-            // Les admins voient tous les projets avec leurs propriétaires
-            if (currentUser?.Role == Role.Admin)
-            {
-                return await _context.Projects
-                    .Include(p => p.Tasks)
-                    .Include(p => p.User)
-                    .ToListAsync();
-            }
+            var query = _context.Projects.Include(p => p.Tasks).Include(p => p.User).AsQueryable();
 
             // Les utilisateurs normaux ne voient que leurs projets
-            return await _context.Projects
-                .Include(p => p.Tasks)
-                .Where(p => p.UserId == userId)
-                .ToListAsync();
+            if (currentUser?.Role != Role.Admin)
+            {
+                query = query.Where(p => p.UserId == userId);
+            }
+
+            var projects = await query.ToListAsync();
+            
+            // Si l'utilisateur n'est pas admin, on vérifie qu'il a accès à au moins un projet
+            if (currentUser?.Role != Role.Admin && !projects.Any())
+            {
+                return NotFound("No projects found");
+            }
+
+            return projects;
         }
 
         [HttpGet("{id}")]
@@ -81,22 +83,10 @@ namespace ProjetCsFinal.Controllers
                 return NotFound("Project not found");
             }
 
-            // Les admins voient tout le détail
-            if (currentUser?.Role == Role.Admin)
+            // Les utilisateurs normaux ne peuvent voir que leurs propres projets
+            if (currentUser?.Role != Role.Admin && project.UserId != userId)
             {
-                return project;
-            }
-
-            // Les autres utilisateurs voient les détails de base si ce n'est pas leur projet
-            if (project.UserId != userId)
-            {
-                return Ok(new {
-                    project.Id,
-                    project.Name,
-                    project.Description,
-                    project.CreationDate,
-                    Owner = new { project.User.Id, project.User.Name }
-                });
+                return NotFound("Project not found or access denied");
             }
 
             return project;
@@ -156,9 +146,16 @@ namespace ProjetCsFinal.Controllers
         public async Task<IActionResult> UpdateProject(int id, Project updatedProject)
         {
             var userId = User.GetUserId();
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            var currentUser = await _context.Users.FindAsync(userId);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
+            {
+                return NotFound("Project not found");
+            }
+
+            // Les utilisateurs normaux ne peuvent modifier que leurs propres projets
+            if (currentUser?.Role != Role.Admin && project.UserId != userId)
             {
                 return NotFound("Project not found or access denied");
             }
@@ -185,9 +182,16 @@ namespace ProjetCsFinal.Controllers
         public async Task<IActionResult> DeleteProject(int id)
         {
             var userId = User.GetUserId();
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            var currentUser = await _context.Users.FindAsync(userId);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
+            {
+                return NotFound("Project not found");
+            }
+
+            // Les utilisateurs normaux ne peuvent supprimer que leurs propres projets
+            if (currentUser?.Role != Role.Admin && project.UserId != userId)
             {
                 return NotFound("Project not found or access denied");
             }

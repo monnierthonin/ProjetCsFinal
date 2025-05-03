@@ -21,7 +21,6 @@ namespace DAL.Models
         /// </summary>
         /// <example>1</example>
         [Key]
-        [JsonIgnore]
         public int Id { get; set; }
 
         /// <summary>
@@ -55,14 +54,15 @@ namespace DAL.Models
         /// Navigation property pour Entity Framework
         /// Permet d'accéder aux informations du projet parent
         /// </remarks>
-        [ForeignKey("ProjectId")]
         [JsonIgnore]
+        [ForeignKey("ProjectId")]
         public virtual Project? Project { get; set; }
 
         /// <summary>
         /// Date d'échéance de la tâche (UTC, optionnel)
         /// </summary>
         /// <example>2025-05-26T19:45:51Z</example>
+        [JsonIgnore]
         public DateTime? DueDate { get; set; }
 
         /// <summary>

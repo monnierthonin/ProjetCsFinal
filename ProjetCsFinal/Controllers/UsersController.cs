@@ -31,16 +31,23 @@ namespace ProjetCsFinal.Controllers
         {
             var userId = User.GetUserId();
             var currentUser = await _context.Users.FindAsync(userId);
+            var query = _context.Users.AsQueryable();
 
-            // Les admins voient tous les utilisateurs, les autres ne voient que leur profil
-            if (currentUser?.Role == Role.Admin)
+            // Les utilisateurs normaux ne voient que leur profil
+            if (currentUser?.Role != Role.Admin)
             {
-                return await _context.Users.ToListAsync();
+                query = query.Where(u => u.Id == userId);
             }
-            
-            return await _context.Users
-                .Where(u => u.Id == userId)
-                .ToListAsync();
+
+            var users = await query.ToListAsync();
+
+            // Si l'utilisateur n'est pas admin, on vérifie qu'il a accès à au moins un utilisateur (son propre profil)
+            if (currentUser?.Role != Role.Admin && !users.Any())
+            {
+                return NotFound("No users found");
+            }
+
+            return users;
         }
 
         [HttpGet("{id}")]
@@ -55,27 +62,25 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<User>> GetUser(int id)
         {
-            var currentUserId = User.GetUserId();
-            var currentUser = await _context.Users.FindAsync(currentUserId);
-            var requestedUser = await _context.Users.FindAsync(id);
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
 
-            // Si l'utilisateur n'existe pas
-            if (requestedUser == null)
+            if (user == null)
             {
-                return NotFound();
+                return NotFound("User not found");
             }
 
-            // Si ce n'est pas un admin et ce n'est pas son profil, on cache les informations sensibles
-            if (currentUser?.Role != Role.Admin && currentUserId != id)
+            // Les utilisateurs normaux ne peuvent voir que leur propre profil
+            if (currentUser?.Role != Role.Admin)
             {
-                return Ok(new {
-                    requestedUser.Id,
-                    requestedUser.Name,
-                    requestedUser.Role
-                });
+                if (user.Id != userId)
+                {
+                    return NotFound("User not found or access denied");
+                }
             }
 
-            return requestedUser;
+            return user;
         }
 
         [HttpPut("{id}")]
@@ -91,32 +96,33 @@ namespace ProjetCsFinal.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateUser(int id, User updatedUser)
         {
-            var currentUserId = User.GetUserId();
-            var userToUpdate = await _context.Users.FindAsync(id);
+            var userId = User.GetUserId();
+            var currentUser = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(id);
 
-            if (userToUpdate == null)
+            if (user == null)
             {
-                return NotFound();
+                return NotFound("User not found");
             }
 
-            // Vérifier si l'utilisateur modifie ses propres informations ou est admin
-            var currentUser = await _context.Users.FindAsync(currentUserId);
-            if (currentUserId != id && currentUser?.Role != Role.Admin)
+            // Les utilisateurs normaux ne peuvent modifier que leur propre profil
+            if (currentUser?.Role != Role.Admin)
             {
-                return Forbid();
+                if (userId != id)
+                {
+                    return NotFound("User not found or access denied");
+                }
+                // Les utilisateurs normaux ne peuvent pas changer leur rôle
+                updatedUser.Role = user.Role;
             }
 
-            userToUpdate.Name = updatedUser.Name;
-            userToUpdate.Email = updatedUser.Email;
+            user.Name = updatedUser.Name;
+            user.Email = updatedUser.Email;
+            user.Role = updatedUser.Role;
+
             if (!string.IsNullOrEmpty(updatedUser.PasswordHash))
             {
-                userToUpdate.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
-            }
-
-            // Seul un admin peut changer le rôle
-            if (currentUser?.Role == Role.Admin)
-            {
-                userToUpdate.Role = updatedUser.Role;
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
             }
 
             await _context.SaveChangesAsync();
@@ -194,9 +200,16 @@ namespace ProjetCsFinal.Controllers
                 return BadRequest(new { Success = false, Message = "Name already exists" });
             }
 
-            // Hash du mot de passe et définition du rôle
+            // Hash du mot de passe
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.Role = Role.User;
+            
+            // Si le rôle n'est pas spécifié, on met User par défaut
+            if (user.Role == 0) // 0 est la valeur par défaut de l'enum
+            {
+                user.Role = Role.User;
+            }
+            // Sinon on garde le rôle spécifié (permet de créer des admin)
+            
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
